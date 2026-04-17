@@ -9,9 +9,9 @@
                 </div>
                 <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mt-2 sm:mt-4">Companies</h1>
             </div>
-            <Button 
+            <Button
                 v-if="canAddCompany"
-                @click="showAddModal = true" 
+                @click="showAddModal = true"
                 class="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             >
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,18 @@
             </Button>
         </div>
 
-        <DataTable :data="companiesWithSerial" :columns="tableColumns">
+        <ServerDataTable
+            :data="companiesWithSerial"
+            :columns="tableColumns"
+            :column-filters="columnFilters"
+            :pagination="paginationState"
+            :loading="tableLoading"
+            @page-change="handlePageChange"
+            @page-size-change="handlePageSizeChange"
+            @filter-change="handleFilterChange"
+            @sort-change="handleSortChange"
+            @clear-filter="handleClearFilter"
+        >
             <template #cell-created_at="{ value }">
                 {{ formatDate(value) }}
             </template>
@@ -49,7 +60,7 @@
                     </button>
                 </div>
             </template>
-        </DataTable>
+        </ServerDataTable>
 
         <!-- Add/Edit Company Modal -->
         <div v-if="showAddModal || editingCompany" class="fixed inset-0 flex items-center justify-center z-50 p-4" @click.self="closeModal">
@@ -65,9 +76,9 @@
                 <form @submit.prevent="saveCompany" class="space-y-3 sm:space-y-4">
                     <div>
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                        <Input 
-                            v-model="companyForm.company_name" 
-                            required 
+                        <Input
+                            v-model="companyForm.company_name"
+                            required
                             placeholder="Enter company name"
                             :class="errors.company_name ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -80,7 +91,7 @@
                 </form>
             </div>
         </div>
-        
+
         <!-- Confirm Delete Dialog -->
         <ConfirmDialog
             v-model:isOpen="showDeleteDialog"
@@ -94,7 +105,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
-import DataTable from '../ui/DataTable.vue';
+import ServerDataTable from '../ui/ServerDataTable.vue';
 import Button from '../ui/Button.vue';
 import Input from '../ui/Input.vue';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
@@ -104,6 +115,21 @@ const showAddModal = ref(false);
 const editingCompany = ref(null);
 const userPermissions = ref([]);
 const currentUserRole = ref('');
+
+// Server-side pagination state
+const paginationState = ref({
+    total: 0,
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 10,
+});
+const tableLoading = ref(false);
+const sortColumn = ref('created_at');
+const sortDirection = ref('desc');
+const columnFilters = ref({
+    'company_id': '',
+    'company_name': '',
+});
 
 const hasPermission = (permission) => {
     return userPermissions.value.includes(permission);
@@ -130,12 +156,12 @@ const tableColumns = computed(() => {
         { key: 'company_name', label: 'Company Name', sortable: true },
         { key: 'created_at', label: 'Created At', sortable: true },
     ];
-    
+
     // Only add actions column if user has edit or delete permission
     if (canEditCompany.value || canDeleteCompany.value) {
         columns.push({ key: 'actions', label: 'Actions', sortable: false });
     }
-    
+
     return columns;
 });
 
@@ -149,14 +175,67 @@ const errors = ref({
 
 const loadCompanies = async () => {
     try {
-        const response = await axios.get('/companies');
-        companies.value = response.data.data || response.data;
+        tableLoading.value = true;
+
+        const params = {
+            page: paginationState.value.currentPage,
+            per_page: paginationState.value.perPage,
+            sort_column: sortColumn.value,
+            sort_direction: sortDirection.value,
+            filters: {},
+        };
+
+        Object.keys(columnFilters.value).forEach(key => {
+            if (columnFilters.value[key] && columnFilters.value[key].trim() !== '') {
+                params.filters[key] = columnFilters.value[key];
+            }
+        });
+
+        const response = await axios.get('/companies', { params });
+        companies.value = response.data.data || [];
+        paginationState.value.total = response.data.total || 0;
+        paginationState.value.currentPage = response.data.current_page || 1;
+        paginationState.value.lastPage = response.data.last_page || 1;
+        paginationState.value.perPage = response.data.per_page || 10;
     } catch (error) {
         console.error('Error loading companies:', error);
         if (window.toast) {
             window.toast.error('Error loading companies');
         }
+    } finally {
+        tableLoading.value = false;
     }
+};
+
+// Server-side pagination handlers
+const handlePageChange = (page) => {
+    paginationState.value.currentPage = page;
+    loadCompanies();
+};
+
+const handlePageSizeChange = (size) => {
+    paginationState.value.perPage = size;
+    paginationState.value.currentPage = 1;
+    loadCompanies();
+};
+
+const handleFilterChange = (filters) => {
+    Object.assign(columnFilters.value, filters);
+    paginationState.value.currentPage = 1;
+    loadCompanies();
+};
+
+const handleSortChange = ({ column, direction }) => {
+    sortColumn.value = column;
+    sortDirection.value = direction;
+    loadCompanies();
+};
+
+const handleClearFilter = (columnKey) => {
+    if (columnFilters.value[columnKey] !== undefined) {
+        columnFilters.value[columnKey] = '';
+    }
+    loadCompanies();
 };
 
 const editCompany = (company) => {
@@ -174,7 +253,7 @@ const clearErrors = () => {
 
 const saveCompany = async () => {
     clearErrors();
-    
+
     // Client-side validation
     if (!companyForm.value.company_name || !companyForm.value.company_name.trim()) {
         errors.value.company_name = 'Company name is required';
@@ -183,7 +262,7 @@ const saveCompany = async () => {
         }
         return;
     }
-    
+
     try {
         if (editingCompany.value) {
             await axios.put(`/companies/${editingCompany.value.id}`, companyForm.value);
@@ -200,18 +279,18 @@ const saveCompany = async () => {
         closeModal();
     } catch (error) {
         console.error('Error saving company:', error);
-        
+
         // Handle validation errors from server
         if (error.response?.status === 422 && error.response?.data?.errors) {
             const validationErrors = error.response.data.errors;
             Object.keys(validationErrors).forEach(key => {
                 if (errors.value.hasOwnProperty(key)) {
-                    errors.value[key] = Array.isArray(validationErrors[key]) 
-                        ? validationErrors[key][0] 
+                    errors.value[key] = Array.isArray(validationErrors[key])
+                        ? validationErrors[key][0]
                         : validationErrors[key];
                 }
             });
-            
+
             if (window.toast) {
                 window.toast.error('Please fix the validation errors');
             }
@@ -233,7 +312,7 @@ const deleteCompany = (companyId) => {
 
 const confirmDeleteCompany = async () => {
     if (!companyToDelete.value) return;
-    
+
     try {
         await axios.delete(`/companies/${companyToDelete.value}`);
         await loadCompanies();
@@ -277,7 +356,7 @@ const loadUserPermissions = async () => {
         const response = await axios.get('/user/permissions');
         userPermissions.value = response.data.permissions || [];
         currentUserRole.value = response.data.user?.role || '';
-        
+
         // Redirect if not super admin
         if (currentUserRole.value !== 'super admin') {
             if (window.toast) {

@@ -13,22 +13,53 @@ class CompanyController extends Controller
     /**
      * Display a listing of companies.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         // Only super admin can access companies
         if (!$user->hasRole('super admin')) {
             return response()->json([
                 'message' => 'Unauthorized. Only super admin can access companies.',
             ], 403);
         }
-        
-        $companies = Company::all();
-        
+
+        // Get pagination parameters
+        $perPage = $request->input('per_page', 10);
+        $page = $request->input('page', 1);
+        $sortColumn = $request->input('sort_column', 'created_at');
+        $sortDirection = $request->input('sort_direction', 'desc');
+
+        // Build base query
+        $query = Company::query();
+
+        // Apply column filters
+        if ($request->has('filters')) {
+            $filters = $request->input('filters');
+
+            if (!empty($filters['company_id'])) {
+                $query->where('company_id', 'like', '%' . $filters['company_id'] . '%');
+            }
+
+            if (!empty($filters['company_name'])) {
+                $query->where('company_name', 'like', '%' . $filters['company_name'] . '%');
+            }
+        }
+
+        // Apply sorting
+        if ($sortColumn) {
+            $query->orderBy($sortColumn, $sortDirection);
+        }
+
+        // Paginate results
+        $companies = $query->paginate($perPage, ['*'], 'page', $page);
+
         return response()->json([
-            'data' => $companies,
-            'total' => $companies->count(),
+            'data' => $companies->items(),
+            'total' => $companies->total(),
+            'current_page' => $companies->currentPage(),
+            'last_page' => $companies->lastPage(),
+            'per_page' => $companies->perPage(),
         ]);
     }
 
@@ -38,21 +69,21 @@ class CompanyController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        
+
         // Only super admin can create companies
         if (!$user->hasRole('super admin')) {
             return response()->json([
                 'message' => 'Unauthorized. Only super admin can create companies.',
             ], 403);
         }
-        
+
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
         ]);
 
         // Generate company_id from company_name (uppercase, replace spaces with underscores)
         $companyId = strtoupper(str_replace(' ', '_', $validated['company_name']));
-        
+
         // Ensure uniqueness
         $baseCompanyId = $companyId;
         $counter = 1;
@@ -81,7 +112,7 @@ class CompanyController extends Controller
                 ->where('guard_name', 'web')
                 ->where('company_id', $company->id)
                 ->first();
-            
+
             if ($existingRole) {
                 // Admin role already exists for this company, skip creation
                 return response()->json([
@@ -90,7 +121,7 @@ class CompanyController extends Controller
                     'company' => $company,
                 ], 201);
             }
-            
+
             // If it's a different company, use DB facade to bypass Spatie's validation
             // The database constraint (name, guard_name, company_id) will allow it
             DB::table('roles')->insert([
@@ -115,21 +146,21 @@ class CompanyController extends Controller
     public function update(Request $request, Company $company)
     {
         $user = Auth::user();
-        
+
         // Only super admin can update companies
         if (!$user->hasRole('super admin')) {
             return response()->json([
                 'message' => 'Unauthorized. Only super admin can update companies.',
             ], 403);
         }
-        
+
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
         ]);
 
         // Generate company_id from company_name
         $companyId = strtoupper(str_replace(' ', '_', $validated['company_name']));
-        
+
         // Ensure uniqueness (excluding current company)
         $baseCompanyId = $companyId;
         $counter = 1;
@@ -156,14 +187,14 @@ class CompanyController extends Controller
     public function destroy(Company $company)
     {
         $user = Auth::user();
-        
+
         // Only super admin can delete companies
         if (!$user->hasRole('super admin')) {
             return response()->json([
                 'message' => 'Unauthorized. Only super admin can delete companies.',
             ], 403);
         }
-        
+
         $company->delete();
         return response()->json([
             'success' => true,

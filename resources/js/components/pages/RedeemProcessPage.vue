@@ -50,9 +50,19 @@
                         {{ row.customer_tag || '-' }}
                     </div>
                 </template>
+                <template #cell-game_id="{ row }">
+                    <div @click.stop="openRedeemDialog(row)" class="cursor-pointer">
+                        {{ row.game_id || '-' }}
+                    </div>
+                </template>
                 <template #cell-payment_method="{ row }">
                     <div @click.stop="openRedeemDialog(row)" class="cursor-pointer">
                         {{ row.payment_method?.payment_method_name || '-' }}
+                    </div>
+                </template>
+                <template #cell-user.name="{ row }">
+                    <div @click.stop="openRedeemDialog(row)" class="cursor-pointer">
+                        {{ row.user?.name || '-' }}
                     </div>
                 </template>
                 <template #cell-status="{ row }">
@@ -96,7 +106,7 @@
                         </svg>
                     </button>
                 </div>
-                
+
                 <div class="space-y-4 mb-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
@@ -104,28 +114,28 @@
                             {{ currentRedeemForm?.customer?.customer_id || '-' }}
                         </div>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
                         <div class="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
                             {{ currentRedeemForm?.customer?.customer_name || '-' }}
                         </div>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Redeem</label>
                         <div class="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
                             {{ formatCurrency(currentRedeemForm?.paid || 0) }}
                         </div>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                         <div class="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
                             {{ currentRedeemForm?.payment_method?.payment_method_name || '-' }}
                         </div>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Customer Tag</label>
                         <div class="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
@@ -133,11 +143,11 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="flex justify-end space-x-3">
-                    <Button 
+                    <Button
                         v-if="currentRedeemForm?.status?.toLowerCase() !== 'pending'"
-                        @click="markAsPending" 
+                        @click="markAsPending"
                         :disabled="submitting"
                         class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2"
                     >
@@ -150,8 +160,8 @@
                         </span>
                         <span v-else>Pending</span>
                     </Button>
-                    <Button 
-                        @click="markAsPaid" 
+                    <Button
+                        @click="markAsPaid"
                         :disabled="submitting"
                         class="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
                     >
@@ -192,7 +202,9 @@ const columnFilters = ref({
     'customer.customer_name': '',
     'paid': '',
     'customer_tag': '',
+    'game_id': '',
     'payment_method': '',
+    'user.name': '',
     'status': '',
 });
 
@@ -209,17 +221,19 @@ const tableColumns = computed(() => {
         { key: 'customer.customer_name', label: 'Customer Name', sortable: true, filterable: true },
         { key: 'paid', label: 'Need to Pay', sortable: true, filterable: true },
         { key: 'customer_tag', label: 'Customer Tag', sortable: true, filterable: true },
+        { key: 'game_id', label: 'Game ID', sortable: true, filterable: true },
         { key: 'payment_method', label: 'Payment Method', sortable: true, filterable: true },
+        { key: 'user.name', label: 'User', sortable: true, filterable: true },
         { key: 'status', label: 'Status', sortable: true, filterable: true },
     ];
-    
+
     // Add Company column for super admin (after Customer Name)
     if (isSuperAdmin.value) {
         columns.splice(2, 0, { key: 'company.company_name', label: 'Company', sortable: true, filterable: true });
     }
-    
+
     columns.push({ key: 'actions', label: 'Actions', sortable: false, filterable: false });
-    
+
     return columns;
 });
 
@@ -253,10 +267,24 @@ const filteredRedeemForms = computed(() => {
         );
     }
 
+    if (columnFilters.value.game_id) {
+        const query = columnFilters.value.game_id.toLowerCase();
+        filtered = filtered.filter(item =>
+            item.game_id?.toLowerCase().includes(query)
+        );
+    }
+
     if (columnFilters.value.payment_method) {
         const query = columnFilters.value.payment_method.toLowerCase();
         filtered = filtered.filter(item =>
             item.payment_method?.payment_method_name?.toLowerCase().includes(query)
+        );
+    }
+
+    if (columnFilters.value['user.name']) {
+        const query = columnFilters.value['user.name'].toLowerCase();
+        filtered = filtered.filter(item =>
+            item.user?.name?.toLowerCase().includes(query)
         );
     }
 
@@ -273,7 +301,7 @@ const filteredRedeemForms = computed(() => {
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(dateRangeFilter.value.endDate);
         endDate.setHours(23, 59, 59, 999);
-        
+
         filtered = filtered.filter(item => {
             const itemDate = new Date(item.created_at);
             return itemDate >= startDate && itemDate <= endDate;
@@ -322,16 +350,16 @@ const processRedeemForm = async (redeemForm) => {
             status: 'in process',
             payment_method_id: redeemForm.payment_method_id || null,
         };
-        
+
         await axios.put(`/redeem-forms/${redeemForm.id}`, payload);
-        
+
         // Set current redeem form and show dialog
         currentRedeemForm.value = { ...redeemForm, status: 'in process' };
         showRedeemDialog.value = true;
-        
+
         // Reload the list to reflect the status change
         await loadRedeemForms();
-        
+
         if (window.toast) {
             window.toast.success('Redeem form moved to process');
         }
@@ -347,7 +375,7 @@ const processRedeemForm = async (redeemForm) => {
 
 const markAsPaid = async () => {
     if (!currentRedeemForm.value) return;
-    
+
     try {
         submitting.value = true;
         const payload = {
@@ -361,13 +389,13 @@ const markAsPaid = async () => {
             status: 'paid',
             payment_method_id: currentRedeemForm.value.payment_method_id || null,
         };
-        
+
         await axios.put(`/redeem-forms/${currentRedeemForm.value.id}`, payload);
-        
+
         if (window.toast) {
             window.toast.success('Redeem form marked as paid');
         }
-        
+
         // Close dialog and reload list (entry will be hidden as it's now paid)
         showRedeemDialog.value = false;
         currentRedeemForm.value = null;
@@ -394,7 +422,7 @@ const closeRedeemDialog = () => {
 
 const markAsPending = async () => {
     if (!currentRedeemForm.value) return;
-    
+
     try {
         submitting.value = true;
         const payload = {
@@ -408,13 +436,13 @@ const markAsPending = async () => {
             status: 'pending',
             payment_method_id: currentRedeemForm.value.payment_method_id || null,
         };
-        
+
         await axios.put(`/redeem-forms/${currentRedeemForm.value.id}`, payload);
-        
+
         if (window.toast) {
             window.toast.success('Redeem form status changed to pending');
         }
-        
+
         // Close dialog and reload list
         showRedeemDialog.value = false;
         currentRedeemForm.value = null;
@@ -443,13 +471,13 @@ const markAsPaidDirect = async (redeemForm) => {
             status: 'paid',
             payment_method_id: redeemForm.payment_method_id || null,
         };
-        
+
         await axios.put(`/redeem-forms/${redeemForm.id}`, payload);
-        
+
         if (window.toast) {
             window.toast.success('Redeem form marked as paid');
         }
-        
+
         // Reload list (entry will be hidden as it's now paid)
         await loadRedeemForms();
     } catch (error) {

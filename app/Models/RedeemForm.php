@@ -17,6 +17,7 @@ class RedeemForm extends Model
         'paid',
         'customer_tag',
         'page_id',
+        'game_id',
         'status',
         'payment_method_id',
         'user_id',

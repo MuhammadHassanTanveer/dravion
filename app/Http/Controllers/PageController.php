@@ -16,21 +16,62 @@ class PageController extends Controller
     {
         $user = auth()->user();
         $isSuperAdmin = $user->hasRole('super admin');
-        
+
+        // Get pagination parameters
+        $perPage = $request->input('per_page', 10);
+        $page = $request->input('page', 1);
+        $sortColumn = $request->input('sort_column', 'created_at');
+        $sortDirection = $request->input('sort_direction', 'desc');
+
+        // Build base query
+        $query = Page::with('company');
+
         // If super admin provides company_id, filter by that company
         // Otherwise, if super admin, show all pages
         // If not super admin, show only pages from their company
         if ($isSuperAdmin && $request->has('company_id') && $request->company_id) {
-            $pages = Page::with('company')->where('company_id', $request->company_id)->get();
-        } elseif ($isSuperAdmin) {
-            $pages = Page::with('company')->get();
-        } else {
-            $pages = Page::with('company')->where('company_id', $user->company_id)->get();
+            $query->where('company_id', $request->company_id);
+        } elseif (!$isSuperAdmin) {
+            $query->where('company_id', $user->company_id);
         }
-        
+
+        // Apply column filters
+        if ($request->has('filters')) {
+            $filters = $request->input('filters');
+
+            if (!empty($filters['page_id'])) {
+                $query->where('page_id', 'like', '%' . $filters['page_id'] . '%');
+            }
+
+            if (!empty($filters['page_name'])) {
+                $query->where('page_name', 'like', '%' . $filters['page_name'] . '%');
+            }
+
+            if (!empty($filters['company.company_name']) && $isSuperAdmin) {
+                $query->whereHas('company', function ($q) use ($filters) {
+                    $q->where('company_name', 'like', '%' . $filters['company.company_name'] . '%');
+                });
+            }
+        }
+
+        // Apply sorting
+        if ($sortColumn) {
+            if (str_contains($sortColumn, '.')) {
+                $query->orderBy('created_at', $sortDirection);
+            } else {
+                $query->orderBy($sortColumn, $sortDirection);
+            }
+        }
+
+        // Paginate results
+        $pages = $query->paginate($perPage, ['*'], 'page', $page);
+
         return response()->json([
-            'data' => $pages,
-            'total' => $pages->count(),
+            'data' => $pages->items(),
+            'total' => $pages->total(),
+            'current_page' => $pages->currentPage(),
+            'last_page' => $pages->lastPage(),
+            'per_page' => $pages->perPage(),
         ]);
     }
 
@@ -41,7 +82,7 @@ class PageController extends Controller
     {
         $user = auth()->user();
         $isSuperAdmin = $user->hasRole('super admin');
-        
+
         $validated = $request->validate([
             'page_name' => 'required|string|max:255',
             'company_id' => $isSuperAdmin ? 'required|exists:companies,id' : 'nullable',
@@ -49,7 +90,7 @@ class PageController extends Controller
 
         // Generate page_id from page_name (uppercase, replace spaces with underscores)
         $pageId = strtoupper(str_replace(' ', '_', $validated['page_name']));
-        
+
         // Ensure uniqueness within company
         $basePageId = $pageId;
         $counter = 1;
@@ -100,7 +141,7 @@ class PageController extends Controller
     {
         $user = auth()->user();
         $isSuperAdmin = $user->hasRole('super admin');
-        
+
         $validated = $request->validate([
             'page_name' => 'required|string|max:255',
             'company_id' => $isSuperAdmin ? 'sometimes|required|exists:companies,id' : 'nullable',
@@ -108,7 +149,7 @@ class PageController extends Controller
 
         // Generate page_id from page_name
         $pageId = strtoupper(str_replace(' ', '_', $validated['page_name']));
-        
+
         // Ensure uniqueness within company (excluding current page)
         $basePageId = $pageId;
         $counter = 1;
@@ -122,11 +163,11 @@ class PageController extends Controller
             'page_id' => $pageId,
             'page_name' => $validated['page_name'],
         ];
-        
+
         if ($isSuperAdmin && isset($validated['company_id'])) {
             $updateData['company_id'] = $validated['company_id'];
         }
-        
+
         $page->update($updateData);
 
         return response()->json([

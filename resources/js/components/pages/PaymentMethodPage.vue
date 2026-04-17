@@ -9,9 +9,9 @@
                 </div>
                 <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mt-2 sm:mt-4">Payment Method</h1>
             </div>
-            <Button 
+            <Button
                 v-if="canAddPaymentMethod"
-                @click="showAddModal = true" 
+                @click="showAddModal = true"
                 class="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             >
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,18 @@
             </Button>
         </div>
 
-        <DataTable :data="paymentMethodsWithSerial" :columns="tableColumns">
+        <ServerDataTable
+            :data="paymentMethodsWithSerial"
+            :columns="tableColumns"
+            :column-filters="columnFilters"
+            :pagination="paginationState"
+            :loading="tableLoading"
+            @page-change="handlePageChange"
+            @page-size-change="handlePageSizeChange"
+            @filter-change="handleFilterChange"
+            @sort-change="handleSortChange"
+            @clear-filter="handleClearFilter"
+        >
             <template #cell-created_at="{ value }">
                 {{ formatDate(value) }}
             </template>
@@ -52,7 +63,7 @@
                     </button>
                 </div>
             </template>
-        </DataTable>
+        </ServerDataTable>
 
         <!-- Add/Edit Payment Method Modal -->
         <div v-if="showAddModal || editingPaymentMethod" class="fixed inset-0 flex items-center justify-center z-50 p-4" @click.self="closeModal">
@@ -69,11 +80,11 @@
                     <div v-if="isSuperAdmin">
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Company</label>
                         <div class="relative" ref="companyDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="companySearchQuery"
                                 @focus="showCompanyDropdown = true"
                                 @input="showCompanyDropdown = true"
-                                required 
+                                required
                                 placeholder="Search and select company..."
                                 :class="errors.company_id ? 'border-red-500 focus:ring-red-500' : ''"
                             />
@@ -94,9 +105,9 @@
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Payment Method Name</label>
-                        <Input 
-                            v-model="paymentMethodForm.payment_method_name" 
-                            required 
+                        <Input
+                            v-model="paymentMethodForm.payment_method_name"
+                            required
                             placeholder="Enter payment method name"
                             :class="errors.payment_method_name ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -109,7 +120,7 @@
                 </form>
             </div>
         </div>
-        
+
         <!-- Confirm Delete Dialog -->
         <ConfirmDialog
             v-model:isOpen="showDeleteDialog"
@@ -123,7 +134,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
-import DataTable from '../ui/DataTable.vue';
+import ServerDataTable from '../ui/ServerDataTable.vue';
 import Button from '../ui/Button.vue';
 import Input from '../ui/Input.vue';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
@@ -138,6 +149,22 @@ const availableCompanies = ref([]);
 const showCompanyDropdown = ref(false);
 const companySearchQuery = ref('');
 const companyDropdownRef = ref(null);
+
+// Server-side pagination state
+const paginationState = ref({
+    total: 0,
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 10,
+});
+const tableLoading = ref(false);
+const sortColumn = ref('created_at');
+const sortDirection = ref('desc');
+const columnFilters = ref({
+    'payment_method_id': '',
+    'payment_method_name': '',
+    'company.company_name': '',
+});
 
 const hasPermission = (permission) => {
     return userPermissions.value.includes(permission);
@@ -160,19 +187,19 @@ const tableColumns = computed(() => {
         { key: 'payment_method_id', label: 'Payment Method ID', sortable: true },
         { key: 'payment_method_name', label: 'Payment Method Name', sortable: true },
     ];
-    
+
     // Add company column for super admin
     if (isSuperAdmin.value) {
         columns.push({ key: 'company.company_name', label: 'Company', sortable: true });
     }
-    
+
     columns.push({ key: 'created_at', label: 'Created At', sortable: true });
-    
+
     // Only add actions column if user has edit or delete permission
     if (canEditPaymentMethod.value || canDeletePaymentMethod.value) {
         columns.push({ key: 'actions', label: 'Actions', sortable: false });
     }
-    
+
     return columns;
 });
 
@@ -198,14 +225,73 @@ const filteredCompanies = computed(() => {
 
 const loadPaymentMethods = async () => {
     try {
-        const response = await axios.get('/payment-methods');
-        paymentMethods.value = response.data.data || response.data;
+        tableLoading.value = true;
+
+        const params = {
+            page: paginationState.value.currentPage,
+            per_page: paginationState.value.perPage,
+            sort_column: sortColumn.value,
+            sort_direction: sortDirection.value,
+            filters: {},
+        };
+
+        Object.keys(columnFilters.value).forEach(key => {
+            if (columnFilters.value[key] && columnFilters.value[key].trim() !== '') {
+                params.filters[key] = columnFilters.value[key];
+            }
+        });
+
+        console.log('[PaymentMethodPage] API Call:', '/payment-methods', params);
+        const response = await axios.get('/payment-methods', { params });
+        paymentMethods.value = response.data.data || [];
+        paginationState.value.total = response.data.total || 0;
+        paginationState.value.currentPage = response.data.current_page || 1;
+        paginationState.value.lastPage = response.data.last_page || 1;
+        paginationState.value.perPage = response.data.per_page || 10;
     } catch (error) {
         console.error('Error loading payment methods:', error);
         if (window.toast) {
             window.toast.error('Error loading payment methods');
         }
+    } finally {
+        tableLoading.value = false;
     }
+};
+
+// Server-side pagination handlers
+const handlePageChange = (page) => {
+    console.log('[PaymentMethodPage] Page changed to:', page);
+    paginationState.value.currentPage = page;
+    loadPaymentMethods();
+};
+
+const handlePageSizeChange = (size) => {
+    console.log('[PaymentMethodPage] Page size changed to:', size);
+    paginationState.value.perPage = size;
+    paginationState.value.currentPage = 1;
+    loadPaymentMethods();
+};
+
+const handleFilterChange = (filters) => {
+    console.log('[PaymentMethodPage] Filter changed:', filters);
+    Object.assign(columnFilters.value, filters);
+    paginationState.value.currentPage = 1;
+    loadPaymentMethods();
+};
+
+const handleSortChange = ({ column, direction }) => {
+    console.log('[PaymentMethodPage] Sort changed:', column, direction);
+    sortColumn.value = column;
+    sortDirection.value = direction;
+    loadPaymentMethods();
+};
+
+const handleClearFilter = (columnKey) => {
+    console.log('[PaymentMethodPage] Filter cleared:', columnKey);
+    if (columnFilters.value[columnKey] !== undefined) {
+        columnFilters.value[columnKey] = '';
+    }
+    loadPaymentMethods();
 };
 
 const loadCompanies = async () => {
@@ -243,7 +329,7 @@ const clearErrors = () => {
 
 const savePaymentMethod = async () => {
     clearErrors();
-    
+
     // Client-side validation
     if (!paymentMethodForm.value.payment_method_name || !paymentMethodForm.value.payment_method_name.trim()) {
         errors.value.payment_method_name = 'Payment method name is required';
@@ -252,7 +338,7 @@ const savePaymentMethod = async () => {
         }
         return;
     }
-    
+
     if (isSuperAdmin.value && !paymentMethodForm.value.company_id) {
         errors.value.company_id = 'Company is required';
         if (window.toast) {
@@ -260,7 +346,7 @@ const savePaymentMethod = async () => {
         }
         return;
     }
-    
+
     try {
         if (editingPaymentMethod.value) {
             await axios.put(`/payment-methods/${editingPaymentMethod.value.id}`, paymentMethodForm.value);
@@ -277,18 +363,18 @@ const savePaymentMethod = async () => {
         closeModal();
     } catch (error) {
         console.error('Error saving payment method:', error);
-        
+
         // Handle validation errors from server
         if (error.response?.status === 422 && error.response?.data?.errors) {
             const validationErrors = error.response.data.errors;
             Object.keys(validationErrors).forEach(key => {
                 if (errors.value.hasOwnProperty(key)) {
-                    errors.value[key] = Array.isArray(validationErrors[key]) 
-                        ? validationErrors[key][0] 
+                    errors.value[key] = Array.isArray(validationErrors[key])
+                        ? validationErrors[key][0]
                         : validationErrors[key];
                 }
             });
-            
+
             if (window.toast) {
                 window.toast.error('Please fix the validation errors');
             }
@@ -310,7 +396,7 @@ const deletePaymentMethod = (paymentMethodId) => {
 
 const confirmDeletePaymentMethod = async () => {
     if (!paymentMethodToDelete.value) return;
-    
+
     try {
         await axios.delete(`/payment-methods/${paymentMethodToDelete.value}`);
         await loadPaymentMethods();

@@ -13,51 +13,89 @@ class UserController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
-        
+
         // Check if user has ANY user-related permission (view, add, edit, or delete)
-        if (!$user->can('view users') && 
-            !$user->can('add user') && 
-            !$user->can('edit user') && 
+        if (!$user->can('view users') &&
+            !$user->can('add user') &&
+            !$user->can('edit user') &&
             !$user->can('delete user')) {
             return response()->json([
                 'message' => 'You do not have permission to access this resource.',
             ], 403);
         }
-        
+
+        // Get pagination parameters
+        $perPage = $request->input('per_page', 10);
+        $page = $request->input('page', 1);
+        $sortColumn = $request->input('sort_column', 'created_at');
+        $sortDirection = $request->input('sort_direction', 'desc');
+
+        // Build base query
+        $query = User::with(['roles', 'pages', 'company']);
+
         // Super admin can see all users (except other super admins), others see only users from their company
         if ($user->hasRole('super admin')) {
-            $users = User::with(['roles', 'pages', 'company'])
-                ->whereDoesntHave('roles', function ($query) {
-                    $query->where('name', 'super admin');
-                })
-                ->get();
+            $query->whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'super admin');
+            });
         } else {
             $isAdmin = $user->hasRole('admin');
-            
+
             // Company admins see only users from their company, excluding super admin users
             // Other users (non-admin, non-super admin) see only users from their company, excluding both super admin and admin users
-            $users = User::with(['roles', 'pages', 'company'])
-                ->where('company_id', $user->company_id)
-                ->whereDoesntHave('roles', function ($query) {
-                    $query->where('name', 'super admin');
+            $query->where('company_id', $user->company_id)
+                ->whereDoesntHave('roles', function ($q) {
+                    $q->where('name', 'super admin');
                 });
-            
+
             // If user is not admin, also exclude admin users
             if (!$isAdmin) {
-                $users = $users->whereDoesntHave('roles', function ($query) {
-                    $query->where('name', 'admin');
+                $query->whereDoesntHave('roles', function ($q) {
+                    $q->where('name', 'admin');
                 });
             }
-            
-            $users = $users->get();
         }
-        
+
+        // Apply column filters
+        if ($request->has('filters')) {
+            $filters = $request->input('filters');
+
+            if (!empty($filters['user_id'])) {
+                $query->where('user_id', 'like', '%' . $filters['user_id'] . '%');
+            }
+
+            if (!empty($filters['name'])) {
+                $query->where('name', 'like', '%' . $filters['name'] . '%');
+            }
+
+            if (!empty($filters['company.company_name']) && $user->hasRole('super admin')) {
+                $query->whereHas('company', function ($q) use ($filters) {
+                    $q->where('company_name', 'like', '%' . $filters['company.company_name'] . '%');
+                });
+            }
+        }
+
+        // Apply sorting
+        if ($sortColumn) {
+            if (str_contains($sortColumn, '.')) {
+                $query->orderBy('created_at', $sortDirection);
+            } else {
+                $query->orderBy($sortColumn, $sortDirection);
+            }
+        }
+
+        // Paginate results
+        $users = $query->paginate($perPage, ['*'], 'page', $page);
+
         return response()->json([
-            'data' => $users,
-            'total' => $users->count(),
+            'data' => $users->items(),
+            'total' => $users->total(),
+            'current_page' => $users->currentPage(),
+            'last_page' => $users->lastPage(),
+            'per_page' => $users->perPage(),
         ]);
     }
 
@@ -67,10 +105,10 @@ class UserController extends Controller
     public function store(Request $request)
     {
         \Log::info('Creating user - Request data:', $request->all());
-        
+
         $currentUser = auth()->user();
         $isSuperAdmin = $currentUser->hasRole('super admin');
-        
+
         $validated = $request->validate([
             'user_id' => 'required|string|max:255|unique:users',
             'name' => 'required|string|max:255',
@@ -80,7 +118,7 @@ class UserController extends Controller
             'pages' => 'sometimes|array',
             'pages.*' => 'exists:pages,id',
         ]);
-        
+
         \Log::info('Validated data:', $validated);
 
         // If not super admin, use current user's company_id
@@ -117,7 +155,7 @@ class UserController extends Controller
         // Assign pages - if admin role, assign all pages from user's company; otherwise use provided pages
         // Check if user has admin role (after role assignment)
         $isAdmin = $user->hasRole('admin');
-        
+
         if ($isAdmin) {
             // Admin gets all pages from their company only
             $companyId = $validated['company_id'];
@@ -151,7 +189,7 @@ class UserController extends Controller
     {
         $currentUser = auth()->user();
         $isSuperAdmin = $currentUser->hasRole('super admin');
-        
+
         // Prevent non-super admin users from editing super admin users
         if (!$isSuperAdmin && $user->hasRole('super admin')) {
             return response()->json([
@@ -159,7 +197,7 @@ class UserController extends Controller
                 'message' => 'You do not have permission to edit super admin users.',
             ], 403);
         }
-        
+
         $validated = $request->validate([
             'user_id' => 'sometimes|required|string|max:255|unique:users,user_id,' . $user->id,
             'name' => 'sometimes|required|string|max:255',
@@ -169,7 +207,7 @@ class UserController extends Controller
             'pages' => 'sometimes|array',
             'pages.*' => 'exists:pages,id',
         ]);
-        
+
         // If not super admin, use current user's company_id (cannot change company)
         if (!$isSuperAdmin) {
             $validated['company_id'] = $currentUser->company_id;
@@ -209,7 +247,7 @@ class UserController extends Controller
         // Check if user has admin role (after role assignment)
         $user->refresh(); // Refresh to get updated role
         $isAdmin = $user->hasRole('admin');
-        
+
         if ($isAdmin) {
             // Admin gets all pages from their company only
             $companyId = isset($validated['company_id']) ? $validated['company_id'] : $user->company_id;
@@ -243,7 +281,7 @@ class UserController extends Controller
     {
         $currentUser = auth()->user();
         $isSuperAdmin = $currentUser->hasRole('super admin');
-        
+
         // Prevent non-super admin users from deleting super admin users
         if (!$isSuperAdmin && $user->hasRole('super admin')) {
             return response()->json([
@@ -251,7 +289,7 @@ class UserController extends Controller
                 'message' => 'You do not have permission to delete super admin users.',
             ], 403);
         }
-        
+
         $user->delete();
         return response()->json([
             'success' => true,

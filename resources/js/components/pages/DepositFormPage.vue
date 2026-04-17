@@ -20,11 +20,11 @@
                     <div class="sm:col-span-2 lg:col-span-4">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Company *</label>
                         <div class="relative" ref="companyDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="companySearchQuery"
                                 @focus="showCompanyDropdown = true"
                                 @input="showCompanyDropdown = true"
-                                required 
+                                required
                                 placeholder="Search and select company..."
                                 :class="errors.company_id ? 'border-red-500 focus:ring-red-500' : ''"
                             />
@@ -48,11 +48,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Customer ID *</label>
-                        <Input 
-                            v-model="form.customer_id" 
+                        <Input
+                            v-model="form.customer_id"
                             @input="searchCustomer"
                             @blur="handleCustomerIdBlur"
-                            required 
+                            required
                             placeholder="Enter Customer ID"
                             :class="errors.customer_id ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -60,10 +60,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Customer Name *</label>
-                        <Input 
-                            v-model="form.customer_name" 
+                        <Input
+                            v-model="form.customer_name"
                             :readonly="customerFound"
-                            required 
+                            required
                             placeholder="Enter Customer Name"
                             :class="[
                                 errors.customer_name ? 'border-red-500 focus:ring-red-500' : '',
@@ -74,12 +74,12 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Deposit *</label>
-                        <Input 
-                            v-model="form.deposit" 
+                        <Input
+                            v-model="form.deposit"
                             type="number"
                             step="0.01"
                             min="0"
-                            required 
+                            required
                             placeholder="0.00"
                             :class="errors.deposit ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -87,8 +87,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Bonus</label>
-                        <Input 
-                            v-model="form.bonus" 
+                        <Input
+                            v-model="form.bonus"
                             type="number"
                             step="0.01"
                             min="0"
@@ -103,8 +103,8 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Game ID</label>
-                        <Input 
-                            v-model="form.game_id" 
+                        <Input
+                            v-model="form.game_id"
                             placeholder="Enter Game ID"
                             :class="errors.game_id ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -113,12 +113,12 @@
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Page Name *</label>
                         <div class="relative" ref="pageDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="pageSearchQuery"
                                 @focus="showPageDropdown = true; highlightedPageIndex = -1"
                                 @input="showPageDropdown = true; highlightedPageIndex = -1"
                                 @keydown="handlePageDropdownKeydown"
-                                required 
+                                required
                                 placeholder="Search and select page..."
                                 :class="errors.page_id ? 'border-red-500 focus:ring-red-500' : ''"
                             />
@@ -144,7 +144,7 @@
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
                         <div class="relative" ref="paymentMethodDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="paymentMethodSearchQuery"
                                 @focus="showPaymentMethodDropdown = true; highlightedPaymentMethodIndex = -1"
                                 @input="showPaymentMethodDropdown = true; highlightedPaymentMethodIndex = -1"
@@ -185,11 +185,11 @@
 
                 <!-- Submit/Update Button -->
                 <div class="flex justify-end space-x-2 pt-1">
-                    <Button 
-                        v-if="editingDepositForm" 
-                        type="button" 
-                        @click="cancelEdit" 
-                        variant="outline" 
+                    <Button
+                        v-if="editingDepositForm"
+                        type="button"
+                        @click="cancelEdit"
+                        variant="outline"
                         class="text-xs px-4 py-1.5"
                     >
                         Cancel
@@ -223,7 +223,18 @@
                 </Button>
             </div>
 
-            <DataTable :data="filteredDepositForms" :columns="tableColumns" :column-filters="columnFilters" :show-global-search="false" @clear-filter="handleClearFilter">
+            <ServerDataTable
+                :data="depositForms"
+                :columns="tableColumns"
+                :column-filters="columnFilters"
+                :pagination="paginationState"
+                :loading="tableLoading"
+                @page-change="handlePageChange"
+                @page-size-change="handlePageSizeChange"
+                @filter-change="handleFilterChange"
+                @sort-change="handleSortChange"
+                @clear-filter="handleClearFilter"
+            >
                 <template #filter-created_at>
                     <DateRangePicker
                         v-model="dateRangeFilter"
@@ -252,6 +263,9 @@
                 <template #cell-payment_method.payment_method_name="{ row }">
                     {{ row.payment_method?.payment_method_name || '-' }}
                 </template>
+                <template #cell-user.name="{ row }">
+                    {{ row.user?.name || '-' }}
+                </template>
                 <template #cell-created_at="{ value }">
                     {{ formatDate(value) }}
                 </template>
@@ -279,7 +293,7 @@
                         </button>
                     </div>
                 </template>
-            </DataTable>
+            </ServerDataTable>
         </div>
 
         <!-- Confirm Delete Dialog -->
@@ -296,7 +310,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import DataTable from '../ui/DataTable.vue';
+import ServerDataTable from '../ui/ServerDataTable.vue';
 import Button from '../ui/Button.vue';
 import Input from '../ui/Input.vue';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
@@ -327,6 +341,17 @@ const companyDropdownRef = ref(null);
 const currentUserRole = ref('');
 const currentUserCompanyId = ref(null);
 const availablePaymentMethods = ref([]);
+
+// Server-side pagination state
+const paginationState = ref({
+    total: 0,
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 10,
+});
+const tableLoading = ref(false);
+const sortColumn = ref('created_at');
+const sortDirection = ref('desc');
 
 const form = ref({
     customer_id: '',
@@ -365,6 +390,7 @@ const columnFilters = ref({
     'game_id': '',
     'page.page_name': '',
     'payment_method.payment_method_name': '',
+    'user.name': '',
     'remarks': '',
     // Company filter will be added conditionally in onMounted
 });
@@ -392,19 +418,20 @@ const tableColumns = computed(() => {
         { key: 'game_id', label: 'Game ID', sortable: true, filterable: true },
         { key: 'page.page_name', label: 'Page Name', sortable: true, filterable: true },
         { key: 'payment_method.payment_method_name', label: 'Payment Method', sortable: true, filterable: true },
+        { key: 'user.name', label: 'User', sortable: true, filterable: true },
         { key: 'remarks', label: 'Remarks', sortable: true, filterable: true },
     ];
-    
+
     // Add company column only for super admin
     if (isSuperAdmin.value) {
         // Insert company column after Customer Name
         columns.splice(3, 0, { key: 'company.company_name', label: 'Company', sortable: true, filterable: true });
     }
-    
+
     if (canEditDepositForm.value || canDeleteDepositForm.value) {
         columns.push({ key: 'actions', label: 'Actions', sortable: false, filterable: false });
     }
-    
+
     return columns;
 });
 
@@ -428,108 +455,93 @@ const filteredPaymentMethods = computed(() => {
     );
 });
 
-const filteredDepositForms = computed(() => {
-    let filtered = depositForms.value;
-
-    if (columnFilters.value.customer_id) {
-        const query = columnFilters.value.customer_id.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.customer?.customer_id?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.customer_name) {
-        const query = columnFilters.value.customer_name.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.customer?.customer_name?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.deposit) {
-        const query = columnFilters.value.deposit.toLowerCase();
-        filtered = filtered.filter(item =>
-            String(item.deposit).toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.bonus) {
-        const query = columnFilters.value.bonus.toLowerCase();
-        filtered = filtered.filter(item =>
-            String(item.bonus).toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.game_id) {
-        const query = columnFilters.value.game_id.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.game_id?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value['page.page_name']) {
-        const query = columnFilters.value['page.page_name'].toLowerCase();
-        filtered = filtered.filter(item =>
-            item.page?.page_name?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value['payment_method.payment_method_name']) {
-        const query = columnFilters.value['payment_method.payment_method_name'].toLowerCase();
-        filtered = filtered.filter(item =>
-            item.payment_method?.payment_method_name?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.remarks) {
-        const query = columnFilters.value.remarks.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.remarks?.toLowerCase().includes(query)
-        );
-    }
-
-    // Filter by company name (only for super admin)
-    if (isSuperAdmin.value && columnFilters.value['company.company_name']) {
-        const query = columnFilters.value['company.company_name'].toLowerCase();
-        filtered = filtered.filter(item =>
-            item.company?.company_name?.toLowerCase().includes(query)
-        );
-    }
-
-    // Apply date range filter for created_at
-    if (dateRangeFilter.value.startDate && dateRangeFilter.value.endDate) {
-        const startDate = new Date(dateRangeFilter.value.startDate);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(dateRangeFilter.value.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        
-        filtered = filtered.filter(item => {
-            const itemDate = new Date(item.created_at);
-            return itemDate >= startDate && itemDate <= endDate;
-        });
-    }
-
-    return filtered;
-});
+// Note: Client-side filtering is removed since we use server-side filtering now
 
 const handleDateRangeChange = (value) => {
     dateRangeFilter.value = value;
+    paginationState.value.currentPage = 1; // Reset to first page
+    loadDepositForms();
 };
 
 const handleClearFilter = (columnKey) => {
+    console.log('[DepositFormPage] Filter cleared:', columnKey);
     if (columnFilters.value[columnKey] !== undefined) {
         columnFilters.value[columnKey] = '';
     }
+    // Reload data when filter is cleared
+    loadDepositForms();
+};
+
+// Server-side pagination handlers
+const handlePageChange = (page) => {
+    console.log('[DepositFormPage] Page changed to:', page);
+    paginationState.value.currentPage = page;
+    loadDepositForms();
+};
+
+const handlePageSizeChange = (size) => {
+    console.log('[DepositFormPage] Page size changed to:', size);
+    paginationState.value.perPage = size;
+    paginationState.value.currentPage = 1; // Reset to first page
+    loadDepositForms();
+};
+
+const handleFilterChange = (filters) => {
+    console.log('[DepositFormPage] Filter changed:', filters);
+    Object.assign(columnFilters.value, filters);
+    paginationState.value.currentPage = 1; // Reset to first page when filtering
+    loadDepositForms();
+};
+
+const handleSortChange = ({ column, direction }) => {
+    console.log('[DepositFormPage] Sort changed:', column, direction);
+    sortColumn.value = column;
+    sortDirection.value = direction;
+    loadDepositForms();
 };
 
 const loadDepositForms = async () => {
     try {
-        const response = await axios.get('/deposit-forms');
-        depositForms.value = response.data.data || response.data;
+        tableLoading.value = true;
+
+        // Build query parameters for server-side pagination
+        const params = {
+            page: paginationState.value.currentPage,
+            per_page: paginationState.value.perPage,
+            sort_column: sortColumn.value,
+            sort_direction: sortDirection.value,
+            filters: {},
+        };
+
+        // Add column filters
+        Object.keys(columnFilters.value).forEach(key => {
+            if (columnFilters.value[key] && columnFilters.value[key].trim() !== '') {
+                params.filters[key] = columnFilters.value[key];
+            }
+        });
+
+        // Add date range filter
+        if (dateRangeFilter.value.startDate && dateRangeFilter.value.endDate) {
+            params.filters.date_from = dateRangeFilter.value.startDate;
+            params.filters.date_to = dateRangeFilter.value.endDate;
+        }
+
+        console.log('[DepositFormPage] API Call:', '/deposit-forms', params);
+        const response = await axios.get('/deposit-forms', { params });
+
+        depositForms.value = response.data.data || [];
+        paginationState.value.total = response.data.total || 0;
+        paginationState.value.currentPage = response.data.current_page || 1;
+        paginationState.value.lastPage = response.data.last_page || 1;
+        paginationState.value.perPage = response.data.per_page || 10;
+
     } catch (error) {
         console.error('Error loading deposit forms:', error);
         if (window.toast) {
             window.toast.error('Error loading deposit forms');
         }
+    } finally {
+        tableLoading.value = false;
     }
 };
 
@@ -728,7 +740,7 @@ const selectCompany = async (company) => {
     form.value.company_name = company.company_name;
     companySearchQuery.value = company.company_name;
     showCompanyDropdown.value = false;
-    
+
     // Reload pages and payment methods filtered by selected company (for super admin)
     if (isSuperAdmin.value) {
         await loadUserPages(company.id);
@@ -749,12 +761,12 @@ const submitForm = async () => {
 
     try {
         const payload = { ...form.value };
-        
+
         // Add company_id for super admin
         if (isSuperAdmin.value && form.value.company_id) {
             payload.company_id = form.value.company_id;
         }
-        
+
         if (editingDepositForm.value) {
             // Update existing deposit form
             await axios.put(`/deposit-forms/${editingDepositForm.value.id}`, payload);
@@ -836,7 +848,7 @@ const editDepositForm = (depositForm) => {
     }
     pageSearchQuery.value = depositForm.page?.page_name || '';
     paymentMethodSearchQuery.value = depositForm.payment_method?.payment_method_name || '';
-    
+
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -893,19 +905,41 @@ const formatDate = (date) => {
 const hasActiveFilters = computed(() => {
     // Check column filters
     const hasColumnFilters = Object.values(columnFilters.value).some(filter => filter && filter.toString().trim() !== '');
-    
+
     // Check date range filter
-    const hasDateFilter = dateRangeFilter.value && dateRangeFilter.value.length === 2;
-    
+    const hasDateFilter = dateRangeFilter.value.startDate && dateRangeFilter.value.endDate;
+
     return hasColumnFilters || hasDateFilter;
 });
 
-// Export to Excel function
-const exportToExcel = () => {
+// Export to Excel function - exports currently displayed/filtered data
+const exportToExcel = async () => {
     try {
-        // Use filtered data if filters are applied, otherwise use all data
-        const dataToExport = hasActiveFilters.value ? filteredDepositForms.value : depositForms.value;
-        
+        // For export, we need to fetch all filtered data (not paginated)
+        const params = {
+            page: 1,
+            per_page: 10000, // Large number to get all records
+            sort_column: sortColumn.value,
+            sort_direction: sortDirection.value,
+            filters: {},
+        };
+
+        // Add column filters
+        Object.keys(columnFilters.value).forEach(key => {
+            if (columnFilters.value[key] && columnFilters.value[key].trim() !== '') {
+                params.filters[key] = columnFilters.value[key];
+            }
+        });
+
+        // Add date range filter
+        if (dateRangeFilter.value.startDate && dateRangeFilter.value.endDate) {
+            params.filters.date_from = dateRangeFilter.value.startDate;
+            params.filters.date_to = dateRangeFilter.value.endDate;
+        }
+
+        const response = await axios.get('/deposit-forms', { params });
+        const dataToExport = response.data.data || [];
+
         if (dataToExport.length === 0) {
             if (window.toast) {
                 window.toast.warning('No data to export');
@@ -914,7 +948,7 @@ const exportToExcel = () => {
             }
             return;
         }
-        
+
         // Prepare data for Excel
         const excelData = dataToExport.map(item => ({
             'Customer ID': item.customer?.customer_id || '-',
@@ -924,28 +958,29 @@ const exportToExcel = () => {
             'Game ID': item.game_id || '-',
             'Page Name': item.page?.page_name || '-',
             'Payment Method': item.payment_method?.payment_method_name || '-',
+            'User': item.user?.name || '-',
             'Remarks': item.remarks || '-',
             'Company': isSuperAdmin.value ? (item.company?.company_name || '-') : undefined,
             'Created At': formatDate(item.created_at),
         }));
-        
+
         // Remove company column if not super admin
         if (!isSuperAdmin.value) {
             excelData.forEach(row => delete row.Company);
         }
-        
+
         // Create workbook and worksheet
         const ws = XLSX.utils.json_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Deposit Records');
-        
+
         // Generate filename with timestamp
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
         const filename = `deposit_records_${timestamp}.xlsx`;
-        
+
         // Download the file
         XLSX.writeFile(wb, filename);
-        
+
         if (window.toast) {
             window.toast.success(`Exported ${dataToExport.length} record(s) to Excel`);
         }

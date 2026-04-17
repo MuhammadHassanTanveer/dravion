@@ -9,14 +9,14 @@
                 </div>
                 <h1 class="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mt-1 sm:mt-2">Redeem Form</h1>
             </div>
-            
+
             <!-- Filter Section - In same row -->
             <div class="flex-1 lg:max-w-4xl">
                 <div class="bg-white rounded-lg shadow-md p-2 sm:p-3">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-2">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Customer ID</label>
-                            <Input 
+                            <Input
                                 v-model="filterCustomerId"
                                 placeholder="Enter Customer ID"
                                 class="text-xs"
@@ -33,7 +33,7 @@
                         <div v-if="isSuperAdmin">
                             <label class="block text-xs font-medium text-gray-700 mb-1">Company</label>
                             <div class="relative" ref="filterCompanyDropdownRef">
-                                <Input 
+                                <Input
                                     v-model="filterCompanySearchQuery"
                                     @focus="showFilterCompanyDropdown = true"
                                     @input="showFilterCompanyDropdown = true"
@@ -63,7 +63,7 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Page</label>
                             <div class="relative" ref="filterPageDropdownRef">
-                                <Input 
+                                <Input
                                     v-model="filterPageSearchQuery"
                                     @focus="showFilterPageDropdown = true"
                                     @input="showFilterPageDropdown = true"
@@ -114,11 +114,11 @@
                     <div class="sm:col-span-2 lg:col-span-4">
                         <label class="block text-xs font-medium text-gray-700 mb-1">Company *</label>
                         <div class="relative" ref="companyDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="companySearchQuery"
                                 @focus="showCompanyDropdown = true"
                                 @input="showCompanyDropdown = true"
-                                required 
+                                required
                                 placeholder="Search and select company..."
                                 :class="errors.company_id ? 'border-red-500 focus:ring-red-500' : ''"
                             />
@@ -138,15 +138,15 @@
                         </div>
                     </div>
                 </div>
-                <!-- Row 1: Customer ID, Customer Name, Page Name, Redeem -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                <!-- Row 1: Customer ID, Customer Name, Page Name, Game ID, Redeem -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Customer ID *</label>
-                        <Input 
-                            v-model="form.customer_id" 
+                        <Input
+                            v-model="form.customer_id"
                             @input="searchCustomer"
                             @blur="handleCustomerIdBlur"
-                            required 
+                            required
                             placeholder="Enter Customer ID"
                             :class="errors.customer_id ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -154,10 +154,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Customer Name *</label>
-                        <Input 
-                            v-model="form.customer_name" 
+                        <Input
+                            v-model="form.customer_name"
                             :readonly="customerFound"
-                            required 
+                            required
                             placeholder="Enter Customer Name"
                             :class="[
                                 errors.customer_name ? 'border-red-500 focus:ring-red-500' : '',
@@ -169,12 +169,12 @@
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Page Name *</label>
                         <div class="relative" ref="pageDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="pageSearchQuery"
                                 @focus="showPageDropdown = true; highlightedPageIndex = -1"
                                 @input="showPageDropdown = true; highlightedPageIndex = -1"
                                 @keydown="handlePageDropdownKeydown"
-                                required 
+                                required
                                 placeholder="Search and select page..."
                                 :class="errors.page_id ? 'border-red-500 focus:ring-red-500' : ''"
                             />
@@ -198,13 +198,22 @@
                         </div>
                     </div>
                     <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Game ID</label>
+                        <Input
+                            v-model="form.game_id"
+                            placeholder="Enter Game ID"
+                            :class="errors.game_id ? 'border-red-500 focus:ring-red-500' : ''"
+                        />
+                        <p v-if="errors.game_id" class="mt-0.5 text-xs text-red-600">{{ errors.game_id }}</p>
+                    </div>
+                    <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Redeem *</label>
-                        <Input 
-                            v-model="form.redeem" 
+                        <Input
+                            v-model="form.redeem"
                             type="number"
                             step="0.01"
                             min="0"
-                            required 
+                            required
                             placeholder="0.00"
                             :class="errors.redeem ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -216,8 +225,8 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Tip</label>
-                        <Input 
-                            v-model="form.tip" 
+                        <Input
+                            v-model="form.tip"
                             type="number"
                             step="0.01"
                             min="0"
@@ -228,8 +237,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Paid</label>
-                        <Input 
-                            v-model="form.paid" 
+                        <Input
+                            v-model="form.paid"
                             type="number"
                             step="0.01"
                             min="0"
@@ -240,8 +249,8 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Customer Tag</label>
-                        <Input 
-                            v-model="form.customer_tag" 
+                        <Input
+                            v-model="form.customer_tag"
                             placeholder="Enter Customer Tag"
                             :class="errors.customer_tag ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -250,7 +259,7 @@
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
                         <div class="relative" ref="paymentMethodDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="paymentMethodSearchQuery"
                                 @focus="showPaymentMethodDropdown = true; highlightedPaymentMethodIndex = -1"
                                 @input="showPaymentMethodDropdown = true; highlightedPaymentMethodIndex = -1"
@@ -281,11 +290,11 @@
 
                 <!-- Submit/Update Button -->
                 <div class="flex justify-end space-x-2 pt-1">
-                    <Button 
-                        v-if="editingRedeemForm" 
-                        type="button" 
-                        @click="cancelEdit" 
-                        variant="outline" 
+                    <Button
+                        v-if="editingRedeemForm"
+                        type="button"
+                        @click="cancelEdit"
+                        variant="outline"
                         class="text-xs px-4 py-1.5"
                     >
                         Cancel
@@ -319,7 +328,18 @@
                 </Button>
             </div>
 
-            <DataTable :data="filteredRedeemForms" :columns="tableColumns" :column-filters="columnFilters" :show-global-search="false" @clear-filter="handleClearFilter">
+            <ServerDataTable
+                :data="redeemForms"
+                :columns="tableColumns"
+                :column-filters="columnFilters"
+                :pagination="paginationState"
+                :loading="tableLoading"
+                @page-change="handlePageChange"
+                @page-size-change="handlePageSizeChange"
+                @filter-change="handleFilterChange"
+                @sort-change="handleSortChange"
+                @clear-filter="handleClearFilter"
+            >
                 <template #filter-created_at>
                     <DateRangePicker
                         v-model="dateRangeFilter"
@@ -351,8 +371,14 @@
                 <template #cell-page.page_name="{ row }">
                     {{ row.page?.page_name || '-' }}
                 </template>
+                <template #cell-game_id="{ row }">
+                    {{ row.game_id || '-' }}
+                </template>
                 <template #cell-payment_method="{ row }">
                     {{ row.payment_method?.payment_method_name || '-' }}
+                </template>
+                <template #cell-user.name="{ row }">
+                    {{ row.user?.name || '-' }}
                 </template>
                 <template #cell-status="{ row }">
                     <span class="px-2 py-1 text-xs rounded-full" :class="getStatusClass(row.status)">
@@ -386,7 +412,7 @@
                         </button>
                     </div>
                 </template>
-            </DataTable>
+            </ServerDataTable>
         </div>
 
         <!-- Confirm Delete Dialog -->
@@ -403,7 +429,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import DataTable from '../ui/DataTable.vue';
+import ServerDataTable from '../ui/ServerDataTable.vue';
 import Button from '../ui/Button.vue';
 import Input from '../ui/Input.vue';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
@@ -436,6 +462,17 @@ const paymentMethodDropdownRef = ref(null);
 const paymentMethodDropdownList = ref(null);
 const highlightedPaymentMethodIndex = ref(-1);
 
+// Server-side pagination state
+const paginationState = ref({
+    total: 0,
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 10,
+});
+const tableLoading = ref(false);
+const sortColumn = ref('created_at');
+const sortDirection = ref('desc');
+
 // Filter section refs
 const filterCustomerId = ref('');
 const filterDateRange = ref({ startDate: null, endDate: null });
@@ -459,6 +496,7 @@ const form = ref({
     customer_tag: '',
     page_id: '',
     page_name: '',
+    game_id: '',
     status: 'pending',
     payment_method_id: '',
     payment_method_name: '',
@@ -488,7 +526,9 @@ const columnFilters = ref({
     'paid': '',
     'customer_tag': '',
     'page.page_name': '',
+    'game_id': '',
     'payment_method': '',
+    'user.name': '',
     'status': '',
 });
 
@@ -515,19 +555,21 @@ const tableColumns = computed(() => {
         { key: 'paid', label: 'Paid', sortable: true, filterable: true },
         { key: 'customer_tag', label: 'Customer Tag', sortable: true, filterable: true },
         { key: 'page.page_name', label: 'Page Name', sortable: true, filterable: true },
+        { key: 'game_id', label: 'Game ID', sortable: true, filterable: true },
         { key: 'payment_method', label: 'Payment Method', sortable: true, filterable: true },
+        { key: 'user.name', label: 'User', sortable: true, filterable: true },
         { key: 'status', label: 'Status', sortable: true, filterable: true },
     ];
-    
+
     // Add Company column for super admin (after Customer Name)
     if (isSuperAdmin.value) {
         columns.splice(3, 0, { key: 'company.company_name', label: 'Company', sortable: true, filterable: true });
     }
-    
+
     if (canEditRedeemForm.value || canDeleteRedeemForm.value) {
         columns.push({ key: 'actions', label: 'Actions', sortable: false, filterable: false });
     }
-    
+
     return columns;
 });
 
@@ -554,7 +596,7 @@ const filteredPaymentMethods = computed(() => {
 // Filter pages for filter dropdown
 const filteredFilterPages = computed(() => {
     let pages = availablePages.value;
-    
+
     // Filter by company if super admin has selected a company
     if (isSuperAdmin.value && filterCompanyId.value) {
         pages = pages.filter(page => page.company_id === filterCompanyId.value);
@@ -562,7 +604,7 @@ const filteredFilterPages = computed(() => {
         // For non-super admin, filter by their company
         pages = pages.filter(page => page.company_id === currentUserCompanyId.value);
     }
-    
+
     // Filter by search query
     if (filterPageSearchQuery.value) {
         const query = filterPageSearchQuery.value.toLowerCase();
@@ -570,7 +612,7 @@ const filteredFilterPages = computed(() => {
             page.page_name.toLowerCase().includes(query)
         );
     }
-    
+
     return pages;
 });
 
@@ -607,7 +649,7 @@ const filteredDataForTotals = computed(() => {
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(filterDateRange.value.endDate);
         endDate.setHours(23, 59, 59, 999);
-        
+
         filteredRedeem = filteredRedeem.filter(item => {
             const itemDate = new Date(item.created_at);
             return itemDate >= startDate && itemDate <= endDate;
@@ -661,109 +703,94 @@ const filteredTotalDeposit = computed(() => {
     }, 0);
 });
 
-const filteredRedeemForms = computed(() => {
-    let filtered = redeemForms.value;
-
-    if (columnFilters.value['customer.customer_id']) {
-        const query = columnFilters.value['customer.customer_id'].toLowerCase();
-        filtered = filtered.filter(item =>
-            item.customer?.customer_id?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value['customer.customer_name']) {
-        const query = columnFilters.value['customer.customer_name'].toLowerCase();
-        filtered = filtered.filter(item =>
-            item.customer?.customer_name?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.redeem) {
-        const query = columnFilters.value.redeem.toLowerCase();
-        filtered = filtered.filter(item =>
-            String(item.redeem).toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.tip) {
-        const query = columnFilters.value.tip.toLowerCase();
-        filtered = filtered.filter(item =>
-            String(item.tip).toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.paid) {
-        const query = columnFilters.value.paid.toLowerCase();
-        filtered = filtered.filter(item =>
-            String(item.paid).toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.customer_tag) {
-        const query = columnFilters.value.customer_tag.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.customer_tag?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value['page.page_name']) {
-        const query = columnFilters.value['page.page_name'].toLowerCase();
-        filtered = filtered.filter(item =>
-            item.page?.page_name?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.payment_method) {
-        const query = columnFilters.value.payment_method.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.payment_method?.payment_method_name?.toLowerCase().includes(query)
-        );
-    }
-
-    if (columnFilters.value.status) {
-        const query = columnFilters.value.status.toLowerCase();
-        filtered = filtered.filter(item =>
-            item.status?.toLowerCase().includes(query)
-        );
-    }
-
-    // Apply date range filter for created_at
-    if (dateRangeFilter.value.startDate && dateRangeFilter.value.endDate) {
-        const startDate = new Date(dateRangeFilter.value.startDate);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(dateRangeFilter.value.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        
-        filtered = filtered.filter(item => {
-            const itemDate = new Date(item.created_at);
-            return itemDate >= startDate && itemDate <= endDate;
-        });
-    }
-
-    return filtered;
-});
+// Note: Client-side filtering (filteredRedeemForms) removed - now using server-side filtering
 
 const handleDateRangeChange = (value) => {
     dateRangeFilter.value = value;
+    paginationState.value.currentPage = 1;
+    loadRedeemForms();
 };
 
 const handleClearFilter = (columnKey) => {
+    console.log('[RedeemFormPage] Filter cleared:', columnKey);
     if (columnKey === 'created_at') {
         dateRangeFilter.value = { startDate: null, endDate: null };
     } else if (columnFilters.value[columnKey] !== undefined) {
         columnFilters.value[columnKey] = '';
     }
+    loadRedeemForms();
+};
+
+// Server-side pagination handlers
+const handlePageChange = (page) => {
+    console.log('[RedeemFormPage] Page changed to:', page);
+    paginationState.value.currentPage = page;
+    loadRedeemForms();
+};
+
+const handlePageSizeChange = (size) => {
+    console.log('[RedeemFormPage] Page size changed to:', size);
+    paginationState.value.perPage = size;
+    paginationState.value.currentPage = 1;
+    loadRedeemForms();
+};
+
+const handleFilterChange = (filters) => {
+    console.log('[RedeemFormPage] Filter changed:', filters);
+    Object.assign(columnFilters.value, filters);
+    paginationState.value.currentPage = 1;
+    loadRedeemForms();
+};
+
+const handleSortChange = ({ column, direction }) => {
+    console.log('[RedeemFormPage] Sort changed:', column, direction);
+    sortColumn.value = column;
+    sortDirection.value = direction;
+    loadRedeemForms();
 };
 
 const loadRedeemForms = async () => {
     try {
-        const response = await axios.get('/redeem-forms');
-        redeemForms.value = response.data.data || response.data;
+        tableLoading.value = true;
+
+        // Build query parameters for server-side pagination
+        const params = {
+            page: paginationState.value.currentPage,
+            per_page: paginationState.value.perPage,
+            sort_column: sortColumn.value,
+            sort_direction: sortDirection.value,
+            filters: {},
+        };
+
+        // Add column filters
+        Object.keys(columnFilters.value).forEach(key => {
+            if (columnFilters.value[key] && columnFilters.value[key].trim() !== '') {
+                params.filters[key] = columnFilters.value[key];
+            }
+        });
+
+        // Add date range filter
+        if (dateRangeFilter.value.startDate && dateRangeFilter.value.endDate) {
+            params.filters.date_from = dateRangeFilter.value.startDate;
+            params.filters.date_to = dateRangeFilter.value.endDate;
+        }
+
+        console.log('[RedeemFormPage] API Call:', '/redeem-forms', params);
+        const response = await axios.get('/redeem-forms', { params });
+
+        redeemForms.value = response.data.data || [];
+        paginationState.value.total = response.data.total || 0;
+        paginationState.value.currentPage = response.data.current_page || 1;
+        paginationState.value.lastPage = response.data.last_page || 1;
+        paginationState.value.perPage = response.data.per_page || 10;
+
     } catch (error) {
         console.error('Error loading redeem forms:', error);
         if (window.toast) {
             window.toast.error('Error loading redeem forms');
         }
+    } finally {
+        tableLoading.value = false;
     }
 };
 
@@ -969,7 +996,7 @@ const selectCompany = async (company) => {
     form.value.company_name = company.company_name;
     companySearchQuery.value = company.company_name;
     showCompanyDropdown.value = false;
-    
+
     // Reload pages and payment methods filtered by selected company (for super admin)
     if (isSuperAdmin.value) {
         await loadUserPages(company.id);
@@ -990,17 +1017,17 @@ const submitForm = async () => {
 
     try {
         const payload = { ...form.value };
-        
+
         // Add company_id for super admin
         if (isSuperAdmin.value && form.value.company_id) {
             payload.company_id = form.value.company_id;
         }
-        
+
         // Ensure status is always 'pending' for new forms
         if (!editingRedeemForm.value) {
             payload.status = 'pending';
         }
-        
+
         if (editingRedeemForm.value) {
             // Update existing redeem form
             await axios.put(`/redeem-forms/${editingRedeemForm.value.id}`, payload);
@@ -1044,6 +1071,7 @@ const resetForm = () => {
         customer_tag: '',
         page_id: '',
         page_name: '',
+        game_id: '',
         status: 'pending',
         payment_method_id: '',
         payment_method_name: '',
@@ -1071,6 +1099,7 @@ const editRedeemForm = (redeemForm) => {
         customer_tag: redeemForm.customer_tag || '',
         page_id: redeemForm.page_id,
         page_name: redeemForm.page?.page_name || '',
+        game_id: redeemForm.game_id || '',
         status: redeemForm.status || 'pending',
         payment_method_id: redeemForm.payment_method_id || '',
         payment_method_name: redeemForm.paymentMethod?.payment_method_name || '',
@@ -1083,7 +1112,7 @@ const editRedeemForm = (redeemForm) => {
     if (isSuperAdmin.value && redeemForm.company) {
         companySearchQuery.value = redeemForm.company.company_name;
     }
-    
+
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -1151,16 +1180,16 @@ const getStatusClass = (status) => {
 const hasActiveFilters = computed(() => {
     // Check column filters
     const hasColumnFilters = Object.values(columnFilters.value).some(filter => filter && filter.toString().trim() !== '');
-    
+
     // Check date range filter
     const hasDateFilter = dateRangeFilter.value && dateRangeFilter.value.length === 2;
-    
+
     // Check filter section filters
-    const hasFilterSectionFilters = filterCustomerId.value || 
+    const hasFilterSectionFilters = filterCustomerId.value ||
                                     (filterDateRange.value && filterDateRange.value.length === 2) ||
                                     filterPageId.value ||
                                     (isSuperAdmin.value && filterCompanyId.value);
-    
+
     return hasColumnFilters || hasDateFilter || hasFilterSectionFilters;
 });
 
@@ -1169,7 +1198,7 @@ const exportToExcel = () => {
     try {
         // Use filtered data if filters are applied, otherwise use all data
         const dataToExport = hasActiveFilters.value ? filteredRedeemForms.value : redeemForms.value;
-        
+
         if (dataToExport.length === 0) {
             if (window.toast) {
                 window.toast.warning('No data to export');
@@ -1178,38 +1207,40 @@ const exportToExcel = () => {
             }
             return;
         }
-        
+
         // Prepare data for Excel
         const excelData = dataToExport.map(item => ({
             'Customer ID': item.customer?.customer_id || '-',
             'Customer Name': item.customer?.customer_name || '-',
             'Redeem': parseFloat(item.redeem || 0).toFixed(2),
             'Paid': parseFloat(item.paid || 0).toFixed(2),
-            'Payment Method': item.paymentMethod?.payment_method_name || '-',
             'Page Name': item.page?.page_name || '-',
+            'Game ID': item.game_id || '-',
+            'Payment Method': item.paymentMethod?.payment_method_name || '-',
+            'User': item.user?.name || '-',
             'Status': item.status || '-',
             'Remarks': item.remarks || '-',
             'Company': isSuperAdmin.value ? (item.company?.company_name || '-') : undefined,
             'Created At': formatDate(item.created_at),
         }));
-        
+
         // Remove company column if not super admin
         if (!isSuperAdmin.value) {
             excelData.forEach(row => delete row.Company);
         }
-        
+
         // Create workbook and worksheet
         const ws = XLSX.utils.json_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Redeem Records');
-        
+
         // Generate filename with timestamp
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
         const filename = `redeem_records_${timestamp}.xlsx`;
-        
+
         // Download the file
         XLSX.writeFile(wb, filename);
-        
+
         if (window.toast) {
             window.toast.success(`Exported ${dataToExport.length} record(s) to Excel`);
         }
@@ -1261,7 +1292,7 @@ const selectFilterCompany = async (company) => {
     filterCompanyName.value = company.company_name;
     filterCompanySearchQuery.value = company.company_name;
     showFilterCompanyDropdown.value = false;
-    
+
     // Reload pages and payment methods filtered by selected company (for super admin)
     if (isSuperAdmin.value) {
         await loadUserPages(company.id);
@@ -1278,7 +1309,7 @@ const clearFilterCompany = async () => {
     filterCompanyName.value = '';
     filterCompanySearchQuery.value = '';
     showFilterCompanyDropdown.value = false;
-    
+
     // Reload all pages and payment methods (for super admin)
     if (isSuperAdmin.value) {
         await loadUserPages();

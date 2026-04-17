@@ -9,9 +9,9 @@
                 </div>
                 <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mt-2 sm:mt-4">Users</h1>
             </div>
-            <Button 
+            <Button
                 v-if="canAddUser"
-                @click="showAddModal = true" 
+                @click="showAddModal = true"
                 class="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             >
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,18 @@
             </Button>
         </div>
 
-        <DataTable :data="users" :columns="tableColumns">
+        <ServerDataTable
+            :data="users"
+            :columns="tableColumns"
+            :column-filters="columnFilters"
+            :pagination="paginationState"
+            :loading="tableLoading"
+            @page-change="handlePageChange"
+            @page-size-change="handlePageSizeChange"
+            @filter-change="handleFilterChange"
+            @sort-change="handleSortChange"
+            @clear-filter="handleClearFilter"
+        >
             <template #cell-company.company_name="{ row }">
                 {{ row.company?.company_name || '-' }}
             </template>
@@ -31,15 +42,15 @@
                 </span>
             </template>
             <template #cell-pages="{ row }">
-                <div 
+                <div
                     v-if="row.pages && Array.isArray(row.pages) && row.pages.length > 0"
                     @click="openPagesDialog(row)"
                     class="cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
                 >
                     <div class="flex flex-wrap gap-1">
-                        <span 
-                            v-for="page in row.pages.slice(0, 3)" 
-                            :key="page.id || page" 
+                        <span
+                            v-for="page in row.pages.slice(0, 3)"
+                            :key="page.id || page"
                             class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs"
                         >
                             {{ typeof page === 'object' ? page.page_name : page }}
@@ -80,7 +91,7 @@
                     </button>
                 </div>
             </template>
-        </DataTable>
+        </ServerDataTable>
 
         <!-- Add/Edit User Modal -->
         <div v-if="showAddModal || editingUser" class="fixed inset-0 flex items-center justify-center z-50 p-4" @click.self="closeModal">
@@ -97,11 +108,11 @@
                     <div v-if="isSuperAdmin">
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Company *</label>
                         <div class="relative" ref="companyDropdownRef">
-                            <Input 
+                            <Input
                                 v-model="companySearchQuery"
                                 @focus="showCompanyDropdown = true"
                                 @input="showCompanyDropdown = true"
-                                required 
+                                required
                                 placeholder="Search and select company..."
                                 :class="errors.company_id ? 'border-red-500 focus:ring-red-500' : ''"
                             />
@@ -122,9 +133,9 @@
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">User ID</label>
-                        <Input 
-                            v-model="userForm.user_id" 
-                            required 
+                        <Input
+                            v-model="userForm.user_id"
+                            required
                             :disabled="!!editingUser"
                             :class="errors.user_id ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -132,8 +143,8 @@
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <Input 
-                            v-model="userForm.name" 
+                        <Input
+                            v-model="userForm.name"
                             required
                             :class="errors.name ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -141,9 +152,9 @@
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Password</label>
-                        <Input 
-                            v-model="userForm.password" 
-                            type="password" 
+                        <Input
+                            v-model="userForm.password"
+                            type="password"
                             :required="!editingUser"
                             :class="errors.password ? 'border-red-500 focus:ring-red-500' : ''"
                         />
@@ -152,8 +163,8 @@
                     </div>
                     <div>
                         <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Role</label>
-                        <select 
-                            v-model="userForm.role" 
+                        <select
+                            v-model="userForm.role"
                             class="w-full h-10 px-3 rounded-md border"
                             :class="errors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'"
                         >
@@ -195,7 +206,7 @@
                             :show-select-all="true"
                         />
                         <p v-if="errors.pages" class="mt-1 text-sm text-red-600">{{ errors.pages }}</p>
-                        
+
                         <!-- Selected Pages Display -->
                         <div v-if="userForm.pages && userForm.pages.length > 0" class="mt-2 flex flex-wrap gap-2">
                             <span
@@ -223,7 +234,7 @@
                 </form>
             </div>
         </div>
-        
+
         <!-- Confirm Delete Dialog -->
         <ConfirmDialog
             v-model:isOpen="showDeleteDialog"
@@ -231,7 +242,7 @@
             message="Are you sure you want to delete this user? This action cannot be undone."
             @confirm="confirmDeleteUser"
         />
-        
+
         <!-- Pages Dialog -->
         <div v-if="showPagesModal" class="fixed inset-0 flex items-center justify-center z-50 p-4" @click.self="showPagesModal = false">
             <div class="bg-black/50 backdrop-blur-sm fixed inset-0" @click="showPagesModal = false"></div>
@@ -270,11 +281,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axios from 'axios';
-import Breadcrumb from '../ui/Breadcrumb.vue';
-import BreadcrumbItem from '../ui/BreadcrumbItem.vue';
-import BreadcrumbLink from '../ui/BreadcrumbLink.vue';
-import BreadcrumbSeparator from '../ui/BreadcrumbSeparator.vue';
-import DataTable from '../ui/DataTable.vue';
+import ServerDataTable from '../ui/ServerDataTable.vue';
 import Button from '../ui/Button.vue';
 import Input from '../ui/Input.vue';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
@@ -296,6 +303,22 @@ const companyDropdownRef = ref(null);
 const currentUserRole = ref('');
 const currentUserCompanyId = ref(null);
 
+// Server-side pagination state
+const paginationState = ref({
+    total: 0,
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 10,
+});
+const tableLoading = ref(false);
+const sortColumn = ref('created_at');
+const sortDirection = ref('desc');
+const columnFilters = ref({
+    'user_id': '',
+    'name': '',
+    'company.company_name': '',
+});
+
 const hasPermission = (permission) => {
     return userPermissions.value.includes(permission);
 };
@@ -312,17 +335,17 @@ const tableColumns = computed(() => {
         { key: 'pages', label: 'Pages', sortable: false },
         { key: 'created_at', label: 'Created At', sortable: true },
     ];
-    
+
     // Add Company column for super admin (after Name column)
     if (isSuperAdmin.value) {
         columns.splice(2, 0, { key: 'company.company_name', label: 'Company', sortable: true });
     }
-    
+
     // Only add actions column if user has edit or delete permission
     if (canEditUser.value || canDeleteUser.value) {
         columns.push({ key: 'actions', label: 'Actions', sortable: false });
     }
-    
+
     return columns;
 });
 
@@ -360,12 +383,71 @@ const filteredCompanies = computed(() => {
 
 const loadUsers = async () => {
     try {
-        const response = await axios.get('/users');
-        users.value = response.data.data || response.data;
+        tableLoading.value = true;
+
+        // Build query parameters for server-side pagination
+        const params = {
+            page: paginationState.value.currentPage,
+            per_page: paginationState.value.perPage,
+            sort_column: sortColumn.value,
+            sort_direction: sortDirection.value,
+            filters: {},
+        };
+
+        // Add column filters
+        Object.keys(columnFilters.value).forEach(key => {
+            if (columnFilters.value[key] && columnFilters.value[key].trim() !== '') {
+                params.filters[key] = columnFilters.value[key];
+            }
+        });
+
+        const response = await axios.get('/users', { params });
+        users.value = response.data.data || [];
+        paginationState.value.total = response.data.total || 0;
+        paginationState.value.currentPage = response.data.current_page || 1;
+        paginationState.value.lastPage = response.data.last_page || 1;
+        paginationState.value.perPage = response.data.per_page || 10;
+
         console.log('Loaded users with pages:', users.value.map(u => ({ id: u.id, name: u.name, pages: u.pages })));
     } catch (error) {
         console.error('Error loading users:', error);
+        if (window.toast) {
+            window.toast.error('Error loading users');
+        }
+    } finally {
+        tableLoading.value = false;
     }
+};
+
+// Server-side pagination handlers
+const handlePageChange = (page) => {
+    paginationState.value.currentPage = page;
+    loadUsers();
+};
+
+const handlePageSizeChange = (size) => {
+    paginationState.value.perPage = size;
+    paginationState.value.currentPage = 1;
+    loadUsers();
+};
+
+const handleFilterChange = (filters) => {
+    Object.assign(columnFilters.value, filters);
+    paginationState.value.currentPage = 1;
+    loadUsers();
+};
+
+const handleSortChange = ({ column, direction }) => {
+    sortColumn.value = column;
+    sortDirection.value = direction;
+    loadUsers();
+};
+
+const handleClearFilter = (columnKey) => {
+    if (columnFilters.value[columnKey] !== undefined) {
+        columnFilters.value[columnKey] = '';
+    }
+    loadUsers();
 };
 
 const loadRoles = async (companyId = null) => {
@@ -379,20 +461,20 @@ const loadRoles = async (companyId = null) => {
         const allRoles = response.data.roles || [];
         // Filter out "super admin" role from the dropdown
         let filteredRoles = allRoles.filter(role => role.name !== 'super admin');
-        
+
         // Only super admin can see and assign admin role
         // All other users (admin and non-admin) cannot see admin role
         if (!isSuperAdmin.value) {
             filteredRoles = filteredRoles.filter(role => role.name.toLowerCase() !== 'admin');
         }
-        
+
         // Users (except super admin and admin) cannot create users with the same role as themselves
         // Filter out the current user's role from the dropdown
         if (!isSuperAdmin.value && !isAdmin.value && currentUserRole.value) {
             const userRoleName = currentUserRole.value.toLowerCase().trim();
             filteredRoles = filteredRoles.filter(role => role.name.toLowerCase() !== userRoleName);
         }
-        
+
         availableRoles.value = filteredRoles;
     } catch (error) {
         console.error('Error loading roles:', error);
@@ -470,7 +552,7 @@ const clearErrors = () => {
 
 const saveUser = async () => {
     clearErrors();
-    
+
     // Client-side validation
     if (!userForm.value.user_id) {
         errors.value.user_id = 'User ID is required';
@@ -483,7 +565,7 @@ const saveUser = async () => {
     } else if (userForm.value.password && userForm.value.password.length < 8) {
         errors.value.password = 'Password must be at least 8 characters';
     }
-    
+
     // If there are client-side errors, don't submit
     if (Object.values(errors.value).some(err => err !== '')) {
         if (window.toast) {
@@ -491,13 +573,13 @@ const saveUser = async () => {
         }
         return;
     }
-    
+
     try {
         // Prepare form data with page IDs
         let pageIds = [];
         console.log('userForm.value.pages before processing:', userForm.value.pages);
         console.log('Type of pages:', typeof userForm.value.pages, 'Is array:', Array.isArray(userForm.value.pages));
-        
+
         if (userForm.value.pages && Array.isArray(userForm.value.pages) && userForm.value.pages.length > 0) {
             pageIds = userForm.value.pages.map((page, index) => {
                 console.log(`Processing page ${index}:`, page, 'Type:', typeof page);
@@ -510,9 +592,9 @@ const saveUser = async () => {
                 return null;
             }).filter(id => id !== null && !isNaN(id));
         }
-        
+
         console.log('Extracted page IDs:', pageIds, 'Count:', pageIds.length);
-        
+
         const formData = {
             user_id: userForm.value.user_id,
             name: userForm.value.name,
@@ -520,14 +602,14 @@ const saveUser = async () => {
             role: userForm.value.role,
             pages: pageIds,
         };
-        
+
         // Add company_id for super admin
         if (isSuperAdmin.value && userForm.value.company_id) {
             formData.company_id = userForm.value.company_id;
         }
-        
+
         console.log('Final formData.pages:', formData.pages, 'Count:', formData.pages.length);
-        
+
         if (editingUser.value) {
             await axios.put(`/users/${editingUser.value.id}`, formData);
             if (window.toast) {
@@ -543,18 +625,18 @@ const saveUser = async () => {
         closeModal();
     } catch (error) {
         console.error('Error saving user:', error);
-        
+
         // Handle validation errors from server
         if (error.response?.status === 422 && error.response?.data?.errors) {
             const validationErrors = error.response.data.errors;
             Object.keys(validationErrors).forEach(key => {
                 if (errors.value.hasOwnProperty(key)) {
-                    errors.value[key] = Array.isArray(validationErrors[key]) 
-                        ? validationErrors[key][0] 
+                    errors.value[key] = Array.isArray(validationErrors[key])
+                        ? validationErrors[key][0]
                         : validationErrors[key];
                 }
             });
-            
+
             if (window.toast) {
                 window.toast.error('Please fix the validation errors');
             }
@@ -576,7 +658,7 @@ const deleteUser = (userId) => {
 
 const confirmDeleteUser = async () => {
     if (!userToDelete.value) return;
-    
+
     try {
         await axios.delete(`/users/${userToDelete.value}`);
         await loadUsers();
@@ -671,16 +753,16 @@ watch(() => userForm.value.role, async (newRole, oldRole) => {
         // Auto-select all pages for admin - but only pages from the relevant company
         // For super admin: use selected company_id
         // For non-super admin: use currentUserCompanyId
-        const relevantCompanyId = isSuperAdmin.value 
-            ? userForm.value.company_id 
+        const relevantCompanyId = isSuperAdmin.value
+            ? userForm.value.company_id
             : currentUserCompanyId.value;
-        
+
         // Filter pages by company_id if we have one
         let pagesToSelect = availablePages.value;
         if (relevantCompanyId) {
             pagesToSelect = availablePages.value.filter(page => page.company_id === relevantCompanyId);
         }
-        
+
         // Auto-select all pages for admin - create new array with all page objects
         userForm.value.pages = pagesToSelect.map(page => ({
             id: page.id,
@@ -718,7 +800,7 @@ watch(() => userForm.value.company_id, async (newCompanyId, oldCompanyId) => {
         // Clear selected role and pages when company changes
         userForm.value.role = '';
         userForm.value.pages = [];
-        
+
         // If role is admin, auto-select all pages from the new company
         if (userForm.value.role === 'admin' && availablePages.value.length > 0 && newCompanyId) {
             const pagesToSelect = availablePages.value.filter(page => page.company_id === newCompanyId);

@@ -20,6 +20,9 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    build: {
+        chunkSizeWarningLimit: 700, // Suppress warning for chunks up to 700 KB
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, 'resources/js'),
